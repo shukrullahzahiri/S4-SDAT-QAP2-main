@@ -1,0 +1,36 @@
+FROM amazoncorretto:17-alpine AS build
+
+WORKDIR /workspace/app
+
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+
+RUN chmod +x mvnw
+RUN ./mvnw install -DskipTests
+RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
+
+FROM amazoncorretto:17-alpine
+
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+COPY --from=build /workspace/app/target/dependency/BOOT-INF/lib /app/lib
+COPY --from=build /workspace/app/target/dependency/META-INF /app/META-INF
+COPY --from=build /workspace/app/target/dependency/BOOT-INF/classes /app
+
+ENTRYPOINT ["java", "-cp", "app:app/lib/*", "com.golfclub.GolfClubApplication"]
+
+# .dockerignore
+.git
+.gitignore
+.env
+*.md
+target/
+!target/*.jar
+logs/
+.idea/
+*.iml
+.vscode/
